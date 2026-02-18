@@ -1,4 +1,4 @@
-﻿import type { PlotPayload, ResultSummary, RunConfig, RunCreated, RunStatus } from './types'
+import type { PlotPayload, ResultSummary, RunConfig, RunCreated, RunStatus, TelemetryFeed } from './types'
 
 async function asJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -41,6 +41,11 @@ export async function getResults(runId: string): Promise<ResultSummary> {
 export async function getPlot(runId: string, plotId: string): Promise<PlotPayload> {
   const response = await fetch(`/api/runs/${runId}/plots/${plotId}`)
   return asJson<PlotPayload>(response)
+}
+
+export async function getTelemetry(runId: string, limit = 300): Promise<TelemetryFeed> {
+  const response = await fetch(`/api/runs/${runId}/telemetry?limit=${limit}`)
+  return asJson<TelemetryFeed>(response)
 }
 
 export async function cancelRun(runId: string): Promise<void> {

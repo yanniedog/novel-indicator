@@ -19,6 +19,8 @@ from app.core.schemas import (
     RunStageLog,
     RunStatus,
     RunStatusEnum,
+    TelemetryFeed,
+    TelemetrySnapshot,
     UniversePreview,
 )
 from app.data.binance import BinanceClient
@@ -161,6 +163,32 @@ def preview_universe(
 ) -> UniversePreview:
     symbols = binance.fetch_top_volume_symbols(top_n=top_n)
     return UniversePreview(symbols=symbols, timestamp=datetime.utcnow())
+
+
+@router.get("/{run_id}/telemetry", response_model=TelemetryFeed)
+def get_telemetry(
+    run_id: str,
+    limit: int = 200,
+    store: ArtifactStore = Depends(get_store),
+) -> TelemetryFeed:
+    path = store.run_dir(run_id) / "telemetry.jsonl"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Telemetry not found")
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    tail = lines[-max(1, min(limit, 5000)) :]
+    snapshots: list[TelemetrySnapshot] = []
+    for line in tail:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+            snapshots.append(TelemetrySnapshot.model_validate(obj))
+        except Exception:
+            continue
+
+    return TelemetryFeed(run_id=run_id, snapshots=snapshots)
 
 
 def _row_to_run_status(db: Database, run_id: str) -> RunStatus:

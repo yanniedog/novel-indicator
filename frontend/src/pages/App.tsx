@@ -1,19 +1,35 @@
-﻿import { useEffect, useMemo, useState } from 'react'
-import { cancelRun, createRun, exportPine, generateReport, getPlot, getResults, listRuns } from '../api/client'
-import type { PlotPayload, ResultSummary, RunStatus } from '../api/types'
+import { useEffect, useMemo, useState } from 'react'
+import { cancelRun, createRun, exportPine, generateReport, getPlot, getResults, getTelemetry, listRuns } from '../api/client'
+import type { PlotPayload, ResultSummary, RunStatus, TelemetrySnapshot } from '../api/types'
 import { PlotPanel } from '../components/PlotPanel'
 
 const PLOTS = ['horizon_heatmap', 'forecast_overlay', 'novelty_pareto', 'timeframe_error']
+
+function fmtSecs(value?: number | null): string {
+  if (value == null || !Number.isFinite(value) || value < 0) {
+    return 'n/a'
+  }
+  const total = Math.round(value)
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  if (h > 0) {
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  }
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+}
 
 export function App() {
   const [runs, setRuns] = useState<RunStatus[]>([])
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
   const [summary, setSummary] = useState<ResultSummary | null>(null)
   const [plots, setPlots] = useState<Record<string, PlotPayload>>({})
+  const [telemetry, setTelemetry] = useState<TelemetrySnapshot[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loadingCreate, setLoadingCreate] = useState(false)
 
   const selectedRun = useMemo(() => runs.find((r) => r.run_id === selectedRunId) ?? null, [runs, selectedRunId])
+  const latestTelemetry = useMemo(() => telemetry[telemetry.length - 1] ?? null, [telemetry])
 
   useEffect(() => {
     const refresh = async () => {
@@ -29,6 +45,24 @@ export function App() {
     }
     refresh()
     const t = setInterval(refresh, 5000)
+    return () => clearInterval(t)
+  }, [selectedRunId])
+
+  useEffect(() => {
+    const loadTelemetry = async () => {
+      if (!selectedRunId) {
+        setTelemetry([])
+        return
+      }
+      try {
+        const feed = await getTelemetry(selectedRunId, 240)
+        setTelemetry(feed.snapshots)
+      } catch {
+        setTelemetry([])
+      }
+    }
+    loadTelemetry()
+    const t = setInterval(loadTelemetry, 2000)
     return () => clearInterval(t)
   }, [selectedRunId])
 
@@ -136,10 +170,22 @@ export function App() {
         {selectedRun ? (
           <>
             <div className="kpis">
-              <div><label>Status</label><span>{selectedRun.status}</span></div>
-              <div><label>Stage</label><span>{selectedRun.stage}</span></div>
-              <div><label>Progress</label><span>{Math.round(selectedRun.progress * 100)}%</span></div>
-              <div><label>Updated</label><span>{new Date(selectedRun.updated_at).toLocaleString()}</span></div>
+              <div>
+                <label>Status</label>
+                <span>{selectedRun.status}</span>
+              </div>
+              <div>
+                <label>Stage</label>
+                <span>{selectedRun.stage}</span>
+              </div>
+              <div>
+                <label>Progress</label>
+                <span>{Math.round(selectedRun.progress * 100)}%</span>
+              </div>
+              <div>
+                <label>Updated</label>
+                <span>{new Date(selectedRun.updated_at).toLocaleString()}</span>
+              </div>
             </div>
             <div className="log-panel">
               {selectedRun.logs.slice(-30).map((log, idx) => (
@@ -153,6 +199,65 @@ export function App() {
           </>
         ) : (
           <p>No run selected.</p>
+        )}
+      </section>
+
+      <section className="panel telemetry-panel">
+        <h2>Live Telemetry</h2>
+        {latestTelemetry ? (
+          <>
+            <div className="telemetry-bars">
+              <div>
+                <label>Overall {Math.round(latestTelemetry.overall_progress * 100)}%</label>
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: `${Math.max(0, Math.min(100, latestTelemetry.overall_progress * 100))}%` }} />
+                </div>
+              </div>
+              <div>
+                <label>Current Task {Math.round(latestTelemetry.stage_progress * 100)}%</label>
+                <div className="bar-track">
+                  <div className="bar-fill bar-fill-alt" style={{ width: `${Math.max(0, Math.min(100, latestTelemetry.stage_progress * 100))}%` }} />
+                </div>
+              </div>
+            </div>
+            <div className="kpis">
+              <div>
+                <label>Working On</label>
+                <span>{latestTelemetry.working_on}</span>
+              </div>
+              <div>
+                <label>Elapsed / ETA</label>
+                <span>{fmtSecs(latestTelemetry.run_elapsed_sec)} / {fmtSecs(latestTelemetry.eta_total_sec)}</span>
+              </div>
+              <div>
+                <label>Task Elapsed / ETA</label>
+                <span>{fmtSecs(latestTelemetry.stage_elapsed_sec)} / {fmtSecs(latestTelemetry.eta_stage_sec)}</span>
+              </div>
+              <div>
+                <label>Rate</label>
+                <span>{latestTelemetry.rate_units_per_sec.toFixed(4)} u/s</span>
+              </div>
+              <div>
+                <label>CPU (sys/proc)</label>
+                <span>{latestTelemetry.system_cpu_percent.toFixed(1)}% / {latestTelemetry.process_cpu_percent.toFixed(1)}%</span>
+              </div>
+              <div>
+                <label>RAM</label>
+                <span>{latestTelemetry.ram_used_gb.toFixed(2)} / {latestTelemetry.ram_total_gb.toFixed(2)} GB ({latestTelemetry.ram_percent.toFixed(1)}%)</span>
+              </div>
+              <div>
+                <label>CPU Temp</label>
+                <span>{latestTelemetry.cpu_temp_c == null ? 'n/a' : `${latestTelemetry.cpu_temp_c.toFixed(1)} C`}</span>
+              </div>
+            </div>
+            <div className="telemetry-footnote">
+              <strong>Achieved:</strong> {latestTelemetry.achieved}
+              <br />
+              <strong>Remaining:</strong> {latestTelemetry.remaining}
+            </div>
+          </>
+        ) : (
+          <p>Telemetry will appear as soon as the run starts writing snapshots.</p>
         )}
       </section>
 

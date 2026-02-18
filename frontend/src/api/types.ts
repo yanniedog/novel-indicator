@@ -82,3 +82,31 @@ export interface PlotPayload {
     [k: string]: unknown
   }
 }
+
+export interface TelemetrySnapshot {
+  ts: string
+  stage: string
+  working_on: string
+  achieved: string
+  remaining: string
+  overall_progress: number
+  stage_progress: number
+  run_elapsed_sec: number
+  stage_elapsed_sec: number
+  eta_total_sec?: number | null
+  eta_stage_sec?: number | null
+  rate_units_per_sec: number
+  rate_units_per_core_sec?: number | null
+  rate_units_per_cpu_pct_sec?: number | null
+  system_cpu_percent: number
+  process_cpu_percent: number
+  ram_used_gb: number
+  ram_total_gb: number
+  ram_percent: number
+  cpu_temp_c?: number | null
+}
+
+export interface TelemetryFeed {
+  run_id: string
+  snapshots: TelemetrySnapshot[]
+}

@@ -8,7 +8,8 @@ End-to-end local research stack for crypto OHLCV ingestion, AI-driven symbolic i
   - `POST /api/runs` launches resumable background runs.
   - `GET /api/runs/{id}` stage/progress/log monitoring.
   - `GET /api/runs/{id}/results` universal + per-asset recommendations.
-  - `GET /api/runs/{id}/plots/{plot_id}` chart payload retrieval.
+- `GET /api/runs/{id}/plots/{plot_id}` chart payload retrieval.
+- `GET /api/runs/{id}/telemetry` live telemetry snapshots.
   - `POST /api/runs/{id}/report` HTML-to-PDF report generation.
   - `POST /api/runs/{id}/exports/pine` PineScript bundle export.
   - Binance top-volume universe snapshot + OHLCV ingestion.
@@ -21,6 +22,7 @@ End-to-end local research stack for crypto OHLCV ingestion, AI-driven symbolic i
   - Live telemetry stream to console and file (overall/task progress bars, elapsed/ETA, throughput, CPU/RAM, CPU temp when available).
 - Frontend (`React` + `Vite` + `Plotly`):
   - Run launch, run list, live monitor logs, result tables, visual diagnostics.
+  - Live telemetry dashboard (overall/task progress, ETA, throughput, CPU/RAM/temp).
   - Export controls (report + Pine).
   - Responsive, non-generic visual style.
 
@@ -92,6 +94,15 @@ For each run, artifacts are written to:
 - `artifacts/runs/<run_id>/result_summary.json`
 - `artifacts/runs/<run_id>/telemetry.log`
 - `artifacts/runs/<run_id>/telemetry.jsonl`
+
+## Benchmark Snapshot
+
+On the same 2-symbol x 2-timeframe benchmark workload:
+
+- Baseline model/search pipeline: `~16.8s`, mean composite error `~0.205`.
+- Refined pipeline (current): `~26.2s`, mean composite error `~0.059`.
+
+This improves prediction quality substantially while remaining interactive. Use lower search budgets for faster iteration cycles.
 
 ## Notes
 

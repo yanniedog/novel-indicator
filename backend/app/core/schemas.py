@@ -175,3 +175,31 @@ class PineBundle(BaseModel):
 class UniversePreview(BaseModel):
     symbols: list[str]
     timestamp: datetime
+
+
+class TelemetrySnapshot(BaseModel):
+    ts: datetime
+    stage: str
+    working_on: str
+    achieved: str
+    remaining: str
+    overall_progress: float
+    stage_progress: float
+    run_elapsed_sec: float
+    stage_elapsed_sec: float
+    eta_total_sec: float | None = None
+    eta_stage_sec: float | None = None
+    rate_units_per_sec: float
+    rate_units_per_core_sec: float | None = None
+    rate_units_per_cpu_pct_sec: float | None = None
+    system_cpu_percent: float
+    process_cpu_percent: float
+    ram_used_gb: float
+    ram_total_gb: float
+    ram_percent: float
+    cpu_temp_c: float | None = None
+
+
+class TelemetryFeed(BaseModel):
+    run_id: str
+    snapshots: list[TelemetrySnapshot]

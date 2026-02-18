@@ -1,5 +1,10 @@
-﻿import Plot from 'react-plotly.js'
+import { Suspense, lazy } from 'react'
 import type { PlotPayload } from '../api/types'
+
+const Plot = lazy(async () => {
+  const mod = await import('react-plotly.js')
+  return { default: mod.default }
+})
 
 type HeatmapPayload = {
   type: 'heatmap'
@@ -37,6 +42,19 @@ function asObject(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>
 }
 
+function Chart({ data }: { data: Array<Record<string, unknown>> }) {
+  return (
+    <Suspense fallback={<div className="plot-loading">Loading chart...</div>}>
+      <Plot
+        data={data as never}
+        layout={{ margin: { t: 20, r: 10, b: 40, l: 40 }, paper_bgcolor: '#fff', plot_bgcolor: '#fff' }}
+        style={{ width: '100%', height: '320px' }}
+        useResizeHandler
+      />
+    </Suspense>
+  )
+}
+
 export function PlotPanel({ plot }: { plot: PlotPayload }) {
   const payload = asObject(plot.payload)
   const kind = payload?.type
@@ -46,12 +64,7 @@ export function PlotPanel({ plot }: { plot: PlotPayload }) {
     return (
       <div className="plot-card">
         <h3>{plot.title}</h3>
-        <Plot
-          data={[{ type: 'heatmap', x: p.x, y: p.y, z: p.z, colorscale: 'Viridis' }]}
-          layout={{ margin: { t: 20, r: 10, b: 40, l: 80 }, paper_bgcolor: '#fff', plot_bgcolor: '#fff' }}
-          style={{ width: '100%', height: '320px' }}
-          useResizeHandler
-        />
+        <Chart data={[{ type: 'heatmap', x: p.x, y: p.y, z: p.z, colorscale: 'Viridis' }]} />
       </div>
     )
   }
@@ -61,12 +74,7 @@ export function PlotPanel({ plot }: { plot: PlotPayload }) {
     return (
       <div className="plot-card">
         <h3>{plot.title}</h3>
-        <Plot
-          data={p.series.map((s) => ({ type: 'scatter', mode: 'lines', name: s.name, x: p.x, y: s.values }))}
-          layout={{ margin: { t: 20, r: 10, b: 40, l: 40 }, paper_bgcolor: '#fff', plot_bgcolor: '#fff' }}
-          style={{ width: '100%', height: '320px' }}
-          useResizeHandler
-        />
+        <Chart data={p.series.map((s) => ({ type: 'scatter', mode: 'lines', name: s.name, x: p.x, y: s.values }))} />
       </div>
     )
   }
@@ -76,7 +84,7 @@ export function PlotPanel({ plot }: { plot: PlotPayload }) {
     return (
       <div className="plot-card">
         <h3>{plot.title}</h3>
-        <Plot
+        <Chart
           data={[
             {
               type: 'scatter',
@@ -87,9 +95,6 @@ export function PlotPanel({ plot }: { plot: PlotPayload }) {
               marker: { size: 8, color: '#d65a31' },
             },
           ]}
-          layout={{ margin: { t: 20, r: 10, b: 40, l: 40 }, paper_bgcolor: '#fff', plot_bgcolor: '#fff' }}
-          style={{ width: '100%', height: '320px' }}
-          useResizeHandler
         />
       </div>
     )
@@ -100,12 +105,7 @@ export function PlotPanel({ plot }: { plot: PlotPayload }) {
     return (
       <div className="plot-card">
         <h3>{plot.title}</h3>
-        <Plot
-          data={[{ type: 'bar', x: p.categories, y: p.values, marker: { color: '#005f73' } }]}
-          layout={{ margin: { t: 20, r: 10, b: 40, l: 40 }, paper_bgcolor: '#fff', plot_bgcolor: '#fff' }}
-          style={{ width: '100%', height: '320px' }}
-          useResizeHandler
-        />
+        <Chart data={[{ type: 'bar', x: p.categories, y: p.values, marker: { color: '#005f73' } }]} />
       </div>
     )
   }
